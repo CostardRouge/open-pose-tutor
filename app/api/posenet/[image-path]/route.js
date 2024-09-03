@@ -1,20 +1,55 @@
 // Nextjs
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 
 // Node
 import { revalidatePath } from "next/cache";
 import fs from "node:fs/promises";
 import path from 'path';
 
-import { createCanvas, loadImage } from 'canvas';
-import tf from '@tensorflow/tfjs-node';
-import { Pose } from '@mediapipe/pose';
+const { createCanvas, loadImage } = require('canvas');
+
+// Mediapipe
+import { PoseLandmarker, FilesetResolver, DrawingUtils } from "./task-visions";
+
+let landmarker = null;
+
+const createLandmarker = async () => {
+    const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+    );
+
+    landmarker =  await PoseLandmarker.createFromOptions(vision, {
+        baseOptions: {
+            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`,
+            delegate: "GPU"
+        },
+        runningMode: "IMAGE",
+        numPoses: 1
+    });
+};
+
+createLandmarker();
 
 export async function GET(request, context) {
     const imagePath = "uploads/HaniaRani/frames/001.png" //context?.params?.["image-path"];
+
+    const img = await loadImage("./public/uploads/HaniaRani/frames/001.png");
+    const canvas = createCanvas(img.width, img.height);
+    const ctx = canvas.getContext('2d');
+
+    ctx.drawImage(img, 0, 0);
+
     const imageFileContent = await fs.readFile(`./public/${imagePath}`);
 
+    // processImage("./public/uploads/HaniaRani/frames/001.png", "./public/uploads/HaniaRani/frames/001-p.png")
+
     const fileExtension = path.extname(imagePath).substring(1)
+
+    const stream = canvas.createPNGStream();
+    // stream.pipe(out);
+
+    return new NextResponse( imageFileContent );
+
 
 
 
